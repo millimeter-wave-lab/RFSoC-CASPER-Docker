@@ -1,0 +1,1 @@
+docker run --rm --net=host -p 5901:5901 --shm-size=512M casper:rfsoc -vnc
