@@ -18,6 +18,13 @@ ARG ADDITIONAL_PRODUCTS
 # By default, the MATLAB container runs as user "matlab". To install mpm dependencies, switch to root.
 USER root
 
+### Install Xilinx Vitis
+WORKDIR /tmp
+ADD Xilinx_Unified_2021.1_0610_2318.tar.gz .
+COPY install_config.txt .
+RUN Xilinx_Unified_2021.1_0610_2318/./xsetup -b Install -a XilinxEULA,3rdPartyEULA,WebTalkTerms -c install_config.txt
+###
+
 # Install mpm dependencies
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
