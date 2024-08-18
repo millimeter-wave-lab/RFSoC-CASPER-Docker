@@ -1,50 +1,45 @@
-# Copyright 2023-2024 The MathWorks, Inc.
-
-# To specify which MATLAB release to install in the container, edit the value of the MATLAB_RELEASE argument.
-# Use lower case to specify the release, for example: ARG MATLAB_RELEASE=r2021b
+# Define the MATLAB version to use
 ARG MATLAB_RELEASE=r2021a
 
-# Specify the extra products to install into the image. These products can either be toolboxes or support packages.
+# Define the additional toolboxes needed for CASPER Toolflow
 ARG ADDITIONAL_PRODUCTS="Simulink DSP_System_Toolbox Fixed-Point_Designer Signal_Processing_Toolbox"
 
 # This Dockerfile builds on the Ubuntu-based mathworks/matlab image.
-# To check the available matlab images, see: https://hub.docker.com/r/mathworks/matlab
 FROM mathworks/matlab:$MATLAB_RELEASE
 
 # Declare the global argument to use at the current build stage
 ARG MATLAB_RELEASE
 ARG ADDITIONAL_PRODUCTS
 
-# By default, the MATLAB container runs as user "matlab". To install mpm dependencies, switch to root.
+# By default, the MATLAB container runs as user "matlab". To install dependencies, switch to root.
 USER root
 
-### Install Xilinx Vitis
-WORKDIR /tmp
-ADD Xilinx_Unified_2021.1_0610_2318.tar.gz .
-COPY install_config.txt .
-RUN Xilinx_Unified_2021.1_0610_2318/./xsetup -b Install -a XilinxEULA,3rdPartyEULA,WebTalkTerms -c install_config.txt
-###
-
-# Install mpm dependencies
+# Install all dependencies
+# MATLAB: wget, ca-certificates
+# Vitis: libtinfo5
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
     && apt-get install --no-install-recommends --yes \
     wget \
     ca-certificates \
-    && apt-get clean \
+    libtinfo5 \
+    && apt-get clean \ 
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
 
-# Run mpm to install MathWorks products into the existing MATLAB installation directory,
-# and delete the mpm installation afterwards.
-# Modify it by setting the ADDITIONAL_PRODUCTS defined above,
-# e.g. ADDITIONAL_PRODUCTS="Statistics_and_Machine_Learning_Toolbox Parallel_Computing_Toolbox MATLAB_Coder".
-# If mpm fails to install successfully then output the logfile to the terminal, otherwise cleanup.
+# Install Xilinx Vitis
+WORKDIR /tmp
+ADD Xilinx_Unified_2021.1_0610_2318.tar.gz .
+COPY install_config.txt .
+RUN Xilinx_Unified_2021.1_0610_2318/./xsetup -b Install -a XilinxEULA,3rdPartyEULA,WebTalkTerms -c install_config.txt
+RUN sudo rm -rf /tmp/Xilinx_Unified_2021.1_0610_2318
 
 # Switch to user matlab, and pass in $HOME variable to mpm,
-# so that mpm can set the correct root folder for the support packages.
+# so that mpm can set the correct root folder for the support packages
 WORKDIR /tmp
 USER matlab
+
+# Run mpm to install MathWorks products into the existing MATLAB installation directory
 RUN wget -q https://www.mathworks.com/mpm/glnxa64/mpm \
     && chmod +x mpm \
     && EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
@@ -55,28 +50,28 @@ RUN wget -q https://www.mathworks.com/mpm/glnxa64/mpm \
     || (echo "MPM Installation Failure. See below for more information:" && cat /tmp/mathworks_root.log && false) \
     && sudo rm -rf mpm /tmp/mathworks_root.log ${HOME}/.MathWorks
 
-# When running the container a license file can be mounted,
-# or a license server can be provided as an environment variable.
-# For more information, see https://hub.docker.com/r/mathworks/matlab
-
-# Alternatively, you can provide a license server to use
-# with the docker image while building the image.
-# Specify the host and port of the machine that serves the network licenses 
-# if you want to bind in the license info as an environment variable.
-# You can also build with something like --build-arg LICENSE_SERVER=27000@MyServerName,
-# in which case you should uncomment the following two lines.
-# If these lines are uncommented, $LICENSE_SERVER must be a valid license
-# server or browser mode will not start successfully.
+# Define the MATLAB license server.
+# By default, we use University of Chile license, change the server for your own needs
 ARG LICENSE_SERVER="27005@matlab-2022a.cec.uchile.cl"
 ENV MLM_LICENSE_FILE=$LICENSE_SERVER
 
-# The following environment variables allow MathWorks to understand how this MathWorks 
-# product is being used. This information helps us make MATLAB even better. 
-# Your content, and information about the content within your files, is not shared with MathWorks. 
-# To opt out of this service, delete the environment variables defined in the following line.
-# See the Help Make MATLAB Even Better section in the accompanying README to learn more: 
-# https://github.com/mathworks-ref-arch/matlab-dockerfile#help-make-matlab-even-better
-#ENV MW_DDUX_FORCE_ENABLE=true MW_CONTEXT_TAGS=$MW_CONTEXT_TAGS,MATLAB:TOOLBOXES:DOCKERFILE:V1
-
+# Change working directory to home folder
 WORKDIR /home/matlab
-# Inherit ENTRYPOINT and CMD from base image.
+
+# Install CASPER repo
+RUN mkdir Workspace
+WORKDIR Workspace
+RUN git config --global http.postBuffer 524288000
+RUN git clone -b xlnx_rel_v2021.1 https://github.com/Xilinx/device-tree-xlnx.git
+RUN git clone -b m2021a-dev https://github.com/casper-astro/mlib_devel.git
+WORKDIR mlib_devel
+RUN touch starsg.local
+RUN    echo "export XILINX_PATH=/tools/Xilinx/Vivado/2021.1" > startsg.local
+    && echo "export COMPOSER_PATH=/tools/Xilinx/Model_Composer/2021.1" >> startsg.local
+    && echo "export MATLAB_PATH=/opt/matlab/R2021a" >> startsg.local
+    && echo "export PLATFORM=lin64" >> startsg.local
+    && echo "export JASPER_BACKEND=vitis" >> startsg.local
+    && echo "export XLNX_DT_REPO_PATH=/home/matlab/Workspace/device-tree-xlnx" >> startsg.local
+
+# Clean home directory
+RUN rmdir Downloads Music Pictures Public Templates Videos
