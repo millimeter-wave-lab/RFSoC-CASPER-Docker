@@ -17,15 +17,22 @@ USER root
 # Install all dependencies
 # MATLAB: wget, ca-certificates
 # Vitis: libtinfo5
+# CASPER: Numpy
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
     && apt-get install --no-install-recommends --yes \
     wget \
     ca-certificates \
     libtinfo5 \
+    python3-numpy \
+    python3-pip \
     && apt-get clean \ 
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
+
+# Install CASPER python requirements
+RUN python3 -m pip install colorlog pyaml odict six lxml
+RUN python3 -m pip install -e "git+https://github.com/casper-astro/xml2vhdl#egg=xml2vhdl_ox&subdirectory=scripts/python/xml2vhdl-ox"
 
 # Install Xilinx Vitis
 WORKDIR /tmp
@@ -66,12 +73,10 @@ RUN git clone -b xlnx_rel_v2021.1 https://github.com/Xilinx/device-tree-xlnx.git
 RUN git clone -b m2021a-dev https://github.com/casper-astro/mlib_devel.git
 WORKDIR mlib_devel
 RUN touch starsg.local
-RUN    echo "export XILINX_PATH=/tools/Xilinx/Vivado/2021.1" > startsg.local
-    && echo "export COMPOSER_PATH=/tools/Xilinx/Model_Composer/2021.1" >> startsg.local
-    && echo "export MATLAB_PATH=/opt/matlab/R2021a" >> startsg.local
-    && echo "export PLATFORM=lin64" >> startsg.local
-    && echo "export JASPER_BACKEND=vitis" >> startsg.local
+RUN    echo "export XILINX_PATH=/tools/Xilinx/Vivado/2021.1" > startsg.local \
+    && echo "export COMPOSER_PATH=/tools/Xilinx/Model_Composer/2021.1" >> startsg.local \
+    && echo "export MATLAB_PATH=/opt/matlab/R2021a" >> startsg.local \
+    && echo "export PLATFORM=lin64" >> startsg.local \
+    && echo "export JASPER_BACKEND=vitis" >> startsg.local \
     && echo "export XLNX_DT_REPO_PATH=/home/matlab/Workspace/device-tree-xlnx" >> startsg.local
 
-# Clean home directory
-RUN rmdir Downloads Music Pictures Public Templates Videos
