@@ -17,7 +17,7 @@ USER root
 # Install all dependencies
 # MATLAB: wget, ca-certificates
 # Vitis: libtinfo5
-# CASPER: Numpy
+# CASPER: Numpy, software-properties-common, libqtcore4, libqtgui4
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
     && apt-get install --no-install-recommends --yes \
@@ -26,6 +26,12 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     libtinfo5 \
     python3-numpy \
     python3-pip \
+    software-properties-common \
+    && add-apt-repository ppa:rock-core/qt4 \
+    && apt-get update \
+    && apt-get install --no-install-recommends --yes \
+    libqtcore4 \
+    libqtgui4 \
     && apt-get clean \ 
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
@@ -80,3 +86,15 @@ RUN    echo "export XILINX_PATH=/tools/Xilinx/Vivado/2021.1" > startsg.local \
     && echo "export JASPER_BACKEND=vitis" >> startsg.local \
     && echo "export XLNX_DT_REPO_PATH=/home/matlab/Workspace/device-tree-xlnx" >> startsg.local
 
+# Solve the library incompatibility problem between Xilinx and MATLAB (see: https://strath-sdr.github.io/tools/matlab/sysgen/vivado/linux/2021/01/28/sysgen-on-20-04.html)
+USER root
+WORKDIR /tools/Xilinx/Vivado/2021.1/lib/lnx64.o/Ubuntu
+RUN mkdir exclude && mv libgmp.so* exclude
+WORKDIR /tools/Xilinx/Model_Composer/2021.1/lib/lnx64.o/Ubuntu
+RUN mkdir exclude && mv libgmp.so* exclude
+WORKDIR /tools/Xilinx/Vivado/2021.1/lib/lnx64.o
+RUN mkdir exclude && mv libgmp.so* exclude
+
+# post build actions
+USER matlab
+WORKDIR /home/matlab
