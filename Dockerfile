@@ -40,6 +40,13 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 RUN python3 -m pip install colorlog pyaml odict six lxml
 RUN python3 -m pip install -e "git+https://github.com/casper-astro/xml2vhdl#egg=xml2vhdl_ox&subdirectory=scripts/python/xml2vhdl-ox"
 
+# Make the following symbolic links to ensure that gcc6 is available to Xilinx tools
+RUN ln -s /usr/include/asm-generic /usr/include/asm
+RUN ln -s /usr/include/x86_64-linux-gnu/sys /usr/include/sys
+RUN ln -s /usr/include/x86_64-linux-gnu/bits /usr/include/bits
+RUN ln -s /usr/include/x86_64-linux-gnu/gnu /usr/include/gnu
+
+
 # Install Xilinx Vitis
 WORKDIR /tmp
 ADD Xilinx_Unified_2021.1_0610_2318.tar.gz .
@@ -94,6 +101,9 @@ WORKDIR /tools/Xilinx/Model_Composer/2021.1/lib/lnx64.o/Ubuntu
 RUN mkdir exclude && mv libgmp.so* exclude
 WORKDIR /tools/Xilinx/Vivado/2021.1/lib/lnx64.o
 RUN mkdir exclude && mv libgmp.so* exclude
+
+# Replace the `as` binary form Xilinx to avoid errors when simulating
+RUN ln -sf /usr/bin/as /tools/Xilinx/Vivado/2021.1/tps/lnx64/binutils-2.26/bin/as
 
 # post build actions
 USER matlab
