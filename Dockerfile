@@ -26,6 +26,8 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     libtinfo5 \
     python3-numpy \
     python3-pip \
+    gcc \
+    build-essential \
     software-properties-common \
     && add-apt-repository ppa:rock-core/qt4 \
     && apt-get update \
@@ -46,11 +48,11 @@ RUN ln -s /usr/include/x86_64-linux-gnu/sys /usr/include/sys
 RUN ln -s /usr/include/x86_64-linux-gnu/bits /usr/include/bits
 RUN ln -s /usr/include/x86_64-linux-gnu/gnu /usr/include/gnu
 
-
 # Install Xilinx Vitis
 WORKDIR /tmp
 ADD Xilinx_Unified_2021.1_0610_2318.tar.gz .
 COPY install_config.txt .
+COPY Xilinx.lic /home/matlab/Documents
 RUN Xilinx_Unified_2021.1_0610_2318/./xsetup -b Install -a XilinxEULA,3rdPartyEULA,WebTalkTerms -c install_config.txt
 RUN sudo rm -rf /tmp/Xilinx_Unified_2021.1_0610_2318
 
@@ -104,6 +106,9 @@ RUN mkdir exclude && mv libgmp.so* exclude
 
 # Replace the `as` binary form Xilinx to avoid errors when simulating
 RUN ln -sf /usr/bin/as /tools/Xilinx/Vivado/2021.1/tps/lnx64/binutils-2.26/bin/as
+
+# Replace dash with bash as default shell
+RUN ln -sf /bin/bash /bin/sh
 
 # post build actions
 USER matlab
